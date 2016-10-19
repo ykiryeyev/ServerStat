@@ -40,6 +40,8 @@ class StatHandler implements HttpHandler {
 	public StatHandler() {
 		renderers.put(HeapRecordStatistics.class, (r) -> formatStatistics((HeapRecordStatistics) r));
 		renderers.put(JvmStatistic.class, (r) -> formatSystemProps((JvmStatistic) r));
+		aggregator.start();
+		jvmMonitor.start();
 	}
 
 	public void handle(HttpExchange exchange) throws IOException {

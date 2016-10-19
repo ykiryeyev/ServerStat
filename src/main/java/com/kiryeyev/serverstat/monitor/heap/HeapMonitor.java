@@ -19,20 +19,11 @@ public class HeapMonitor implements StatMonitor {
 	private Thread monitorThread;
 
 	/**
-	 * Constructs {@link HeapMonitor} object 
-	 * 
-	 */
-	public HeapMonitor() {
-//		start();
-	}
-
-	
-	/**
 	 * Starts sampling thread
 	 */
 	@Override
 	public void start() {
-		if (monitorThread != null) {
+		if (monitorThread == null) {
 			monitorThread = new Thread(new MonitorThread(this, MONITOR_DELAY), "HeapMonitor");
 			monitorThread.setDaemon(true);
 			monitorThread.start();

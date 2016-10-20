@@ -1,7 +1,7 @@
 package com.kiryeyev.serverstat.monitor;
 
 /**
- * Common interface for all statistical records
+ * StatRecord stores information consolidated for some time period
  * 
  * @author Yevgen_Kiryeyev
  *
@@ -14,9 +14,14 @@ public interface StatRecord {
 	public String getName();
 
 	/**
-	 * Is current statistical record contains static information?
+	 * Is current statistical record contains static information
 	 * 
 	 * @return true if so, false otherwise
 	 */
 	public boolean isStatical();
+
+	/**
+	 * Time period in milliseconds
+	 */
+	public long getTime();
 }

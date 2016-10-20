@@ -11,8 +11,9 @@ import java.util.stream.Collectors;
 
 import com.kiryeyev.serverstat.monitor.StatMonitor;
 import com.kiryeyev.serverstat.monitor.StatRecord;
+import com.kiryeyev.serverstat.monitor.heap.CompositeStatistics;
 import com.kiryeyev.serverstat.monitor.heap.HeapMonitor;
-import com.kiryeyev.serverstat.monitor.heap.HeapRecordStatistics;
+import com.kiryeyev.serverstat.monitor.heap.HeapStatistics;
 import com.kiryeyev.serverstat.monitor.jvm.JvmInfoMonitor;
 import com.kiryeyev.serverstat.monitor.jvm.JvmStatistic;
 import com.sun.net.httpserver.Headers;
@@ -20,6 +21,12 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
+/**
+ * Web server to show JVM load statistics
+ * 
+ * @author Yevgen_Kiryeyev
+ *
+ */
 public class StatServer {
 	public static void main(String[] args) throws IOException {
 		InetSocketAddress addr = new InetSocketAddress(8080);
@@ -32,18 +39,30 @@ public class StatServer {
 	}
 }
 
+/**
+ * Responds to statistics request and outputs all gathered statistics in plain
+ * text format.
+ * 
+ * @author Yevgen_Kiryeyev
+ *
+ */
 class StatHandler implements HttpHandler {
 	private StatMonitor aggregator = new HeapMonitor();
 	private JvmInfoMonitor jvmMonitor = new JvmInfoMonitor();
 	private Map<Class<?>, StatRenderer> renderers = new HashMap<>();
 
+	/**
+	 * Create object instance and starts all statistics monitor
+	 */
 	public StatHandler() {
-		renderers.put(HeapRecordStatistics.class, (r) -> formatStatistics((HeapRecordStatistics) r));
+		renderers.put(CompositeStatistics.class, (r) -> formatCompositeStatistics((CompositeStatistics) r));
 		renderers.put(JvmStatistic.class, (r) -> formatSystemProps((JvmStatistic) r));
+		renderers.put(HeapStatistics.class, (r) -> formatHeapStatistics((HeapStatistics) r));
 		aggregator.start();
 		jvmMonitor.start();
 	}
 
+	@Override
 	public void handle(HttpExchange exchange) throws IOException {
 		String requestMethod = exchange.getRequestMethod();
 		if (requestMethod.equalsIgnoreCase("GET")) {
@@ -54,18 +73,25 @@ class StatHandler implements HttpHandler {
 			OutputStream responseBody = exchange.getResponseBody();
 			StringBuilder response = new StringBuilder("WebServer Statistics");
 			response.append("\n");
+			response.append("\n");
 
 			StatRecord statistics;
-			statistics = jvmMonitor.getStatistic(0);
-			response.append(formatStatistics(statistics));
 			statistics = aggregator.getStatistic(TimeUnit.MILLISECONDS.convert(10, TimeUnit.SECONDS));
 			response.append(formatStatistics(statistics));
+			response.append("\n");
 			statistics = aggregator.getStatistic(TimeUnit.MILLISECONDS.convert(30, TimeUnit.SECONDS));
 			response.append(formatStatistics(statistics));
+			response.append("\n");
 			statistics = aggregator.getStatistic(TimeUnit.MILLISECONDS.convert(1, TimeUnit.MINUTES));
 			response.append(formatStatistics(statistics));
+			response.append("\n");
 			statistics = aggregator.getStatistic(TimeUnit.MILLISECONDS.convert(3, TimeUnit.MINUTES));
 			response.append(formatStatistics(statistics));
+			response.append("\n");
+
+			statistics = jvmMonitor.getStatistic(0);
+			response.append(formatStatistics(statistics));
+			response.append("\n");
 
 			responseBody.write(response.toString().getBytes());
 			responseBody.close();
@@ -77,26 +103,37 @@ class StatHandler implements HttpHandler {
 		return renderer.render(record);
 	}
 
-	private String formatStatistics(HeapRecordStatistics statistics) {
-		StringBuilder result = new StringBuilder("Heap Statistics for ")
-				.append(TimeUnit.SECONDS.convert(statistics.getTime(), TimeUnit.MILLISECONDS));
-		result.append("\n");
-		result.append("Min Free Heap: ").append(statistics.getMinFree()).append(" Max Free Heap: ")
-				.append(statistics.getMaxFree()).append(" Average Free Heap: ").append(statistics.getAverageFree());
-		result.append("\n");
-		result.append("Min Used Heap: ").append(statistics.getMinUsed()).append(" Max Used Heap: ")
-				.append(statistics.getMaxUsed()).append(" Average Used Heap: ").append(statistics.getAverageUsed());
-		result.append("\n");
-		return result.toString();
-	}
-	
-	private String formatSystemProps( JvmStatistic systemStat) {
+	private String formatSystemProps(JvmStatistic systemStat) {
 		StringBuilder result = new StringBuilder("JVM System Info");
 		result.append("\n");
+		result.append("\n");
 		String props = systemStat.getSystemProperties().entrySet().stream()
-			.map((entry) -> entry.getKey()+": "+entry.getValue())
-			.collect(Collectors.joining("\n"));
+				.map((entry) -> entry.getKey() + ": " + entry.getValue()).collect(Collectors.joining("\n"));
 		result.append(props);
+		result.append("\n");
 		return result.toString();
 	}
+
+	private String formatCompositeStatistics(CompositeStatistics r) {
+		StringBuilder result = new StringBuilder(r.getName());
+		result.append(" For last ").append(TimeUnit.SECONDS.convert(r.getTime(), TimeUnit.MILLISECONDS))
+				.append(" seconds");
+		result.append("\n");
+		result.append("\n");
+		String childrenStat = r.getChildren().stream().map((child) -> formatStatistics(child))
+				.collect(Collectors.joining("\n"));
+		result.append(childrenStat);
+		result.append("\n");
+		return result.toString();
+	}
+
+	private String formatHeapStatistics(HeapStatistics r) {
+		StringBuilder result = new StringBuilder();
+		result.append("Min ").append(r.getName()).append(": ").append(r.getMin());
+		result.append(" Max ").append(r.getName()).append(": ").append(r.getMax());
+		result.append(" Average ").append(r.getName()).append(": ").append(r.getAverage());
+
+		return result.toString();
+	}
+
 }

@@ -30,11 +30,15 @@ public class HeapMonitorTest {
 		HeapMonitor monitor = new HeapMonitor();
 		monitor.updateStat();
 		monitor.updateStat();
-		HeapRecordStatistics statistic = monitor.getStatistic(200);
-		assertEquals(42, statistic.getMinFree());
-		assertEquals(420 - 42, statistic.getMaxUsed());
-		assertEquals(84, statistic.getMaxFree());
-		assertEquals(420 - 84, statistic.getMinUsed());
+		CompositeStatistics statistic = monitor.getStatistic(200);
+		HeapStatistics freeStat = (HeapStatistics) statistic.getChildren().stream()
+				.filter((s) -> ((HeapStatistics) s).getType() == HeapStatistics.Type.Free).findFirst().get();
+		HeapStatistics usedStat = (HeapStatistics) statistic.getChildren().stream()
+				.filter((s) -> ((HeapStatistics) s).getType() == HeapStatistics.Type.Used).findFirst().get();
+		assertEquals(42, freeStat.getMin());
+		assertEquals(420 - 42, usedStat.getMax());
+		assertEquals(84, freeStat.getMax());
+		assertEquals(420 - 84, usedStat.getMin());
 	}
 
 	@Test

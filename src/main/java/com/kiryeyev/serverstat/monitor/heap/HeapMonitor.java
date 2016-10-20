@@ -31,9 +31,10 @@ public class HeapMonitor implements StatMonitor {
 	}
 
 	@Override
-	public HeapRecordStatistics getStatistic(long time) {
-		HeapRecordStatistics statistics = statLog.stream().limit(time / MONITOR_DELAY).collect(
-				() -> new HeapRecordStatistics(time), (r, t) -> r.accept((HeapRecord) t), (l, r) -> l.andThen(r));
+	public CompositeStatistics getStatistic(long time) {
+		CompositeStatistics statistics = statLog.stream().limit(time / MONITOR_DELAY)
+				.collect(() -> new HeapRecordConsolidator(time), (r, t) -> r.accept(t), (l, r) -> l.andThen(r))
+				.getStat();
 		return statistics;
 	}
 
